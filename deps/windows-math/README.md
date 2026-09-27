@@ -34,8 +34,8 @@ Upstream skips were decimal64/decimal128 tests on both targets, plus float128
 on ARM64. Complete logs are available as
 [x64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36331885720/artifacts/10935947404)
 and [ARM64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36331885720/artifacts/10936644425)
-(14-day retention). Autonomous retries stopped at this checkpoint pending the
-user's decision.
+(14-day retention). These results are the last completed dependency
+qualification; further fixes must pass the entire workflow before adoption.
 
 ## Actions runtime checks are not library qualification
 
@@ -52,6 +52,13 @@ checkout cleanup on the same Windows runner matrix, without building libraries.
 Its artifacts are explicitly labeled runtime fixtures, not dependency packages.
 A green **Actions runtime only** run does not resolve the blocked qualification
 above; all library, MSVC-consumer, and package gates remain unchanged.
+
+[Runtime-only run 36348481031](https://github.com/crutkas/PrusaSlicer/actions/runs/36348481031)
+passed checkout, both actual fixture uploads, upload ID/SHA256 validation, and
+post-checkout cleanup on ARM64 and x64. Its complete logs contain no Actions
+warning/error annotations or Node deprecation warnings. The ARM64 runner emits
+an informational notice about its Visual Studio 2026 image migration; this is
+not a Node warning. This run produced fixtures only, not qualified libraries.
 
 ## Running
 
