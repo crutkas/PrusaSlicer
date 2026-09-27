@@ -53,8 +53,10 @@ selects `long long` limbs for the 64-bit ABI. Assembly is disabled for an
 explicit portable-C baseline on both architectures; no performance equivalence
 to optimized shipped binaries is claimed. C++ `gmpxx` is intentionally excluded.
 The C ABI, not the MinGW C++ ABI, is the integration boundary.
-The provided `target-gcc`/`target-g++` aliases still invoke the pinned Clang,
-but avoid old Libtool's `cl*` compiler-name heuristic selecting MSVC filenames.
+The provided `target-gcc` alias invokes the pinned Clang. `CXX=no` is explicit:
+GMP 6.2.1 skips GNU C++ detection with `--disable-cxx`, but a supplied `CXX`
+would still initialize Libtool's C++ tag with an unset `GXX` and overwrite the
+C library's shared filename/install settings. No C++ library is built.
 
 Prior art reviewed: [GMP's Windows DLL/import-library documentation](https://gmplib.org/manual/Notes-for-Particular-Systems),
 the [vcpkg GMP](https://github.com/microsoft/vcpkg/tree/856e200a1264bf2fcbe7a19b0dcd0ed7aa1cf1bd/ports/gmp)
