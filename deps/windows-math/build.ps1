@@ -17,7 +17,10 @@ function Get-VerifiedArchive {
     param($InputSpec)
     $name = ([Uri]$InputSpec.url).Segments[-1]
     $file = Join-Path $WorkRoot "downloads\$name"
-    Invoke-WebRequest $InputSpec.url -OutFile $file
+    Write-Host "Downloading $($InputSpec.url)"
+    Invoke-Checked curl.exe @('-4', '--fail', '--location', '--silent', '--show-error',
+        '--retry', '3', '--retry-all-errors', '--connect-timeout', '30',
+        '--output', $file, $InputSpec.url)
     $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($hash -ne $InputSpec.sha256) { throw "SHA256 mismatch for $name" }
     return $file
@@ -120,7 +123,7 @@ try {
     $env:CHERE_INVOKING = '1'
     $env:MSYSTEM = 'MSYS'
     foreach ($name in @('make', 'm4')) {
-        Invoke-Checked "$WorkRoot\tools\msys64\usr\bin\tar.exe" @('-xf', $archives[$name], '-C', "$WorkRoot\tools\msys64")
+        Invoke-Checked "$WorkRoot\tools\msys64\usr\bin\tar.exe" @('--force-local', '-xf', $archives[$name], '-C', "$WorkRoot\tools\msys64")
     }
     foreach ($name in @('gmp', 'mpfr')) {
         Invoke-Checked tar @('-xf', $archives[$name], '-C', "$WorkRoot\src")
@@ -132,7 +135,7 @@ try {
     Import-Module "$vs\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
     Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments "-arch=$Architecture -host_arch=$Architecture"
     Assert-Machine (Get-Command cl.exe).Source
-    Invoke-Checked $bash @('--noprofile', '--norc', $PSScriptRoot.Replace('\', '/') + '/build.sh', $WorkRoot, $llvm, $target)
+    Invoke-Checked $bash @('--noprofile', '--norc', ($PSScriptRoot.Replace('\', '/') + '/build.sh'), $WorkRoot, $llvm, $target)
 
     Copy-Item "$WorkRoot\install\bin\libgmp-10.dll", "$WorkRoot\install\bin\libmpfr-6.dll" "$WorkRoot\package\bin"
     Copy-Item "$WorkRoot\install\include\gmp.h", "$WorkRoot\install\include\mpfr.h", "$WorkRoot\install\include\mpf2mpfr.h" "$WorkRoot\package\include"
