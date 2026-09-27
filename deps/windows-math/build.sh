@@ -13,15 +13,20 @@ export NM=llvm-nm
 export RANLIB=llvm-ranlib
 export STRIP=llvm-strip
 export DLLTOOL=llvm-dlltool
-export CFLAGS="-O2"
+export CFLAGS="-O2 -std=gnu11"
 export CXXFLAGS="-O2"
+if [[ "$target" == x86_64-* ]]; then
+    # Match MSVC's long double ABI, including MPFR's public get/set_ld API.
+    CFLAGS="$CFLAGS -mlong-double-64"
+    CXXFLAGS="$CXXFLAGS -mlong-double-64"
+fi
 export LC_ALL=C
 export TZ=UTC
 prefix="$root/install"
 mkdir -p "$root/build-gmp" "$root/build-mpfr"
 
 cd "$root/build-gmp"
-"$root/src/gmp-6.2.1/configure" \
+../src/gmp-6.2.1/configure \
     --build="$target" --host="$target" --prefix="$prefix" \
     --disable-assembly --disable-static --enable-shared --disable-cxx \
     2>&1 | tee "$root/logs/gmp-configure.log"
@@ -31,7 +36,7 @@ make install 2>&1 | tee "$root/logs/gmp-install.log"
 
 export PATH="$prefix/bin:$PATH"
 cd "$root/build-mpfr"
-"$root/src/mpfr-4.2.1/configure" \
+../src/mpfr-4.2.1/configure \
     --build="$target" --host="$target" --prefix="$prefix" \
     --with-gmp="$prefix" --disable-static --enable-shared \
     --enable-thread-safe \

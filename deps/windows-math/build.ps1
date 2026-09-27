@@ -151,9 +151,10 @@ try {
         Invoke-Checked cl @('/nologo', '/std:c++17', '/EHsc', '/MD', '/W4', '/WX',
             "/I$WorkRoot\package\include", "$PSScriptRoot\smoke.cpp", '/Fe:smoke-msvc.exe',
             '/link', "$WorkRoot\package\lib\libgmp-10.lib", "$WorkRoot\package\lib\libmpfr-6.lib")
-        Invoke-Checked "$llvm\bin\$target-clang.exe" @('-x', 'c++', '-std=c++17', '-O2',
+        $abiFlags = if ($Architecture -eq 'x64') { @('-mlong-double-64') } else { @() }
+        Invoke-Checked "$llvm\bin\$target-clang.exe" (@('-x', 'c++', '-std=c++17', '-O2',
             "-I$WorkRoot\package\include", "$PSScriptRoot\smoke.cpp",
-            "-L$WorkRoot\install\lib", '-lmpfr', '-lgmp', '-o', 'smoke-llvm.exe')
+            "-L$WorkRoot\install\lib", '-lmpfr', '-lgmp', '-o', 'smoke-llvm.exe') + $abiFlags)
         Assert-Machine "$WorkRoot\package\bin\smoke-msvc.exe"
         Assert-Machine "$WorkRoot\package\bin\smoke-llvm.exe"
         $msvcOutput = @(& .\smoke-msvc.exe)
@@ -168,7 +169,8 @@ try {
     $recipeHash = (Get-FileHash "$PSScriptRoot\inputs.json" -Algorithm SHA256).Hash.ToLowerInvariant()
     $commit = (& git -C $PSScriptRoot rev-parse HEAD).Trim()
     if ($LASTEXITCODE) { throw 'Recipe must be in a git checkout' }
-    $key = "gmp-$($spec.gmp.version)-mpfr-$($spec.mpfr.version)-$Architecture-llvm-$($spec.llvm.version)-$($recipeHash.Substring(0,12))-$($commit.Substring(0,12))"
+    $msvcVersion = $env:VCToolsVersion.TrimEnd('\')
+    $key = "gmp-$($spec.gmp.version)-mpfr-$($spec.mpfr.version)-$Architecture-llvm-$($spec.llvm.version)-msvc-$msvcVersion-$($recipeHash.Substring(0,12))-$($commit.Substring(0,12))"
     $sourceRoot = "$WorkRoot\package\source"
     New-Item -ItemType Directory "$sourceRoot\recipe", "$WorkRoot\package\licenses" -Force | Out-Null
     Copy-Item $archives.gmp, $archives.mpfr $sourceRoot

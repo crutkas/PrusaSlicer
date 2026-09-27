@@ -11,10 +11,22 @@
     std::fprintf(stderr, "Failed: %s (line %d)\n", #condition, __LINE__); \
     return 1; } } while (false)
 
+static DWORD WINAPI check_thread_precision(void*)
+{
+    mpfr_set_default_prec(80);
+    mpfr_t value;
+    mpfr_init(value);
+    const bool correct = mpfr_get_prec(value) == 80;
+    mpfr_clear(value);
+    mpfr_free_cache();
+    return correct ? 0 : 1;
+}
+
 int main()
 {
     static_assert(sizeof(void*) == 8, "Only 64-bit targets are supported");
     static_assert(sizeof(long) == 4, "Windows LLP64 is required");
+    static_assert(sizeof(long double) == 8, "MSVC long double ABI is required");
     static_assert(sizeof(mp_limb_t) * 8 == GMP_LIMB_BITS, "GMP limb mismatch");
     USHORT process_machine = 0, native_machine = 0;
     CHECK(IsWow64Process2(GetCurrentProcess(), &process_machine, &native_machine));
@@ -29,6 +41,16 @@ int main()
     CHECK(std::strcmp(gmp_version, "6.2.1") == 0);
     CHECK(std::strcmp(mpfr_get_version(), "4.2.1") == 0);
     CHECK(mp_bits_per_limb == GMP_LIMB_BITS);
+    CHECK(mpfr_buildopt_tls_p() != 0);
+    mpfr_set_default_prec(113);
+    HANDLE thread = CreateThread(nullptr, 0, check_thread_precision, nullptr, 0, nullptr);
+    CHECK(thread != nullptr);
+    CHECK(WaitForSingleObject(thread, 30000) == WAIT_OBJECT_0);
+    DWORD thread_result = 1;
+    CHECK(GetExitCodeThread(thread, &thread_result));
+    CHECK(CloseHandle(thread));
+    CHECK(thread_result == 0);
+    CHECK(mpfr_get_default_prec() == 113);
 
     mpz_t value, expected;
     mpz_inits(value, expected, nullptr);
@@ -54,6 +76,8 @@ int main()
     mpfr_inits2(256, real, square, (mpfr_ptr) nullptr);
     CHECK(mpfr_set_q(real, rational, MPFR_RNDN) == 0);
     CHECK(mpfr_cmp_d(real, 0.5) == 0);
+    CHECK(mpfr_set_ld(real, 0.125L, MPFR_RNDN) == 0);
+    CHECK(mpfr_get_ld(real, MPFR_RNDN) == 0.125L);
     mpfr_set_ui(real, 2, MPFR_RNDN);
     mpfr_sqrt(real, real, MPFR_RNDN);
     mpfr_mul(square, real, real, MPFR_RNDN);
