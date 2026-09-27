@@ -39,7 +39,9 @@ if [[ ! -s "$prefix/bin/libgmp-10.dll" || ! -s "$prefix/lib/libgmp.dll.a" ]]; th
     echo "GMP did not install the expected GNU-driver DLL and import archive" >&2
     exit 1
 fi
-make -j2 check 2>&1 | tee "$root/logs/gmp-check.log"
+# Windows Libtool translates unsupported -no-install to -no-fast-install.
+make -j2 check AM_LDFLAGS='-no-fast-install' \
+    2>&1 | tee "$root/logs/gmp-check.log"
 
 export PATH="$prefix/bin:$PATH"
 cd "$root/build-mpfr"
@@ -49,5 +51,6 @@ cd "$root/build-mpfr"
     --enable-thread-safe \
     2>&1 | tee "$root/logs/mpfr-configure.log"
 make -j2 2>&1 | tee "$root/logs/mpfr-build.log"
-make -j2 check 2>&1 | tee "$root/logs/mpfr-check.log"
+make -j2 check AM_LDFLAGS='-no-fast-install -L$(top_builddir)/src/.libs' \
+    2>&1 | tee "$root/logs/mpfr-check.log"
 make install 2>&1 | tee "$root/logs/mpfr-install.log"

@@ -26,9 +26,12 @@ The failure is `tsprintf.exe`, which hits GMP's
 shows its `vsnprintf` conformance probe failing on `"%nhello world"` under the
 selected UCRT formatted-I/O configuration, selecting the replacement routine.
 The failing assertion is a correctness blocker, not an expected test skip.
-The `%n`/CRT behavior and replacement formatting path require a reviewed fix
-and another complete native qualification; the assertion has not been disabled
-and no configure result has been forced.
+The `%n`/CRT behavior legitimately selects GMP's replacement routine. That
+routine omitted hexadecimal floating conversions (`%a`/`%A`) from its output
+size calculation and argument traversal before calling `vsprintf`.
+The recipe now patches those omissions and adds printf-family regression
+coverage, but requires another complete native qualification. The assertion
+has not been disabled and no configure result has been forced.
 
 Upstream skips were decimal64/decimal128 tests on both targets, plus float128
 on ARM64. Complete logs are available as
@@ -137,7 +140,14 @@ treated as cross-compiled.
 
 The workflow runs `make check` for both libraries and fails on errors. Their
 logs preserve upstream-reported skips/unsupported features; a successful exit
-does not mean every optional upstream test exists on Windows. The original
+does not mean every optional upstream test exists on Windows. Clang does not
+provide `_Decimal64`/`_Decimal128` on either target, so upstream's decimal tests
+return 77; ARM64 also lacks the `__float128` fallback detected on x64, so its
+`tset_float128` test returns 77. These are configure-detected unavailable
+extensions, not disabled arithmetic tests. Libtool's supported
+`-no-fast-install` test link mode is selected explicitly instead of requesting
+the unsupported Windows `-no-install` mode and relying on its warning/fallback.
+The original
 `smoke.cpp` checks integer, rational, high-precision MPFR arithmetic, version
 data imports, allocation/free APIs, and the exact structure/type layouts seen
 by both compilers, plus MPFR thread-local precision isolation. MSVC `lib.exe`
@@ -189,6 +199,27 @@ source archives plus the applied patch are shipped. Patches are checked against
 the pinned source context, recorded with SHA256 hashes in provenance, and never
 downloaded dynamically. No Autoconf regeneration or unpinned package update is
 needed.
+
+`patches/windows-warning-cleanup.patch` fixes diagnostics rather than adding
+warning-suppression flags: Clang DLL consumers use local GMP inline definitions
+instead of incompatible `dllimport` plus GNU external-inline definitions;
+non-inline functions and data remain imports. LLP64 test diagnostics use GMP's
+limb-sized format and construct a full maximum limb without truncating it
+through `unsigned long`. Compile-time width guards retain small-limb/nail
+branches only when their conditions can be true, and retain the existing
+LP64-only MPFR test vector only when `unsigned long` can represent it.
+Parentheses, explicit discarded carry results (only where assertions were
+already disabled), and a widened formatting-bound comparison preserve the
+original arithmetic checks. No compiler warning category is disabled.
+The workflow rejects remaining compiler/build warnings before packaging.
+
+`patches/gmp-replacement-vsnprintf-hex.patch` repairs hexadecimal floating
+formatting in GMP's replacement `vsnprintf`: it accounts for the conversion's
+maximum size and consumes the correct `double`/`long double` argument.
+The UCRT policy disabling direct CRT `%n` remains unchanged; GMP handles its
+own `%n` conversion. Regression coverage exercises mixed arguments, precision,
+truncation, long-double extremes, and GMP-managed `%n`, without bypassing the
+configure probe, removing assertions, or excluding upstream tests.
 
 ## Adoption and licensing
 

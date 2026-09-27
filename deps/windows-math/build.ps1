@@ -171,6 +171,15 @@ try {
     Assert-Machine (Get-Command cl.exe).Source
     Invoke-Checked $bash @('--noprofile', '--norc', ($PSScriptRoot.Replace('\', '/') + '/build.sh'), $WorkRoot, $llvm, $target)
 
+    $buildWarnings = @(foreach ($name in @('gmp-configure', 'gmp-build', 'gmp-check', 'gmp-install',
+                                          'mpfr-configure', 'mpfr-build', 'mpfr-check', 'mpfr-install')) {
+        Select-String -Path "$WorkRoot\logs\$name.log" -Pattern '\bwarning:' -CaseSensitive:$false
+    })
+    if ($buildWarnings.Count) {
+        $buildWarnings | Select-Object -First 20 | ForEach-Object { Write-Host $_ }
+        throw "$($buildWarnings.Count) build/test warnings remain; see complete diagnostic logs"
+    }
+
     Copy-Item "$WorkRoot\install\bin\libgmp-10.dll", "$WorkRoot\install\bin\libmpfr-6.dll" "$WorkRoot\package\bin"
     Copy-Item "$WorkRoot\install\include\gmp.h", "$WorkRoot\install\include\mpfr.h", "$WorkRoot\install\include\mpf2mpfr.h" "$WorkRoot\package\include"
     Export-ImportLibrary "$WorkRoot\package\bin\libgmp-10.dll" 'libgmp-10'
