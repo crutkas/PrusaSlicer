@@ -123,7 +123,11 @@ try {
     $env:CHERE_INVOKING = '1'
     $env:MSYSTEM = 'MSYS'
     foreach ($name in @('make', 'm4')) {
-        Invoke-Checked "$WorkRoot\tools\msys64\usr\bin\tar.exe" @('--force-local', '-xf', $archives[$name], '-C', "$WorkRoot\tools\msys64")
+        $archivePath = & "$WorkRoot\tools\msys64\usr\bin\cygpath.exe" -u $archives[$name]
+        if ($LASTEXITCODE) { throw "Cannot convert archive path for $name" }
+        $msysRoot = & "$WorkRoot\tools\msys64\usr\bin\cygpath.exe" -u "$WorkRoot\tools\msys64"
+        if ($LASTEXITCODE) { throw 'Cannot convert MSYS root path' }
+        Invoke-Checked "$WorkRoot\tools\msys64\usr\bin\tar.exe" @('-xf', $archivePath, '-C', $msysRoot)
     }
     foreach ($name in @('gmp', 'mpfr')) {
         Invoke-Checked tar @('-xf', $archives[$name], '-C', "$WorkRoot\src")
