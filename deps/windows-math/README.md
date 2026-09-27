@@ -6,6 +6,37 @@ GMP 6.2.1 and MPFR 4.2.1 DLLs, MSVC import libraries, and headers on native
 Windows ARM64 and x64 runners. Existing committed Windows binaries and all
 application/dependency consumption paths are unchanged.
 
+## Qualification status: blocked
+
+The [native qualification run](https://github.com/crutkas/PrusaSlicer/actions/runs/36331885720)
+at recipe commit `c52f998bf6c1e7901da6a956ae6bcf631ce6c298` built both libraries,
+but failed the MPFR upstream test gate on both architectures. **No verified
+binary/source package was uploaded. Do not adopt these outputs yet.**
+
+| Gate | x64 | ARM64 |
+| --- | --- | --- |
+| GMP upstream tests | 175 passed, no skips | 175 passed, no skips |
+| MPFR upstream tests | 195 passed, 2 skipped, 1 failed | 194 passed, 3 skipped, 1 failed |
+| MSVC import generation, consumer arithmetic/ABI/TLS, DLL audit | Not reached | Not reached |
+| Clean unpacked ZIP consumer | Not reached | Not reached |
+| Full PrusaSlicer integration | Not attempted | Not attempted |
+
+The failure is `tsprintf.exe`, which hits GMP's
+`printf/repl-vsnprintf.c:389` assertion `len < total_width`. GMP's configure log
+shows its `vsnprintf` conformance probe failing on `"%nhello world"` under the
+selected UCRT formatted-I/O configuration, selecting the replacement routine.
+The failing assertion is a correctness blocker, not an expected test skip.
+The `%n`/CRT behavior and replacement formatting path require a reviewed fix
+and another complete native qualification; the assertion has not been disabled
+and no configure result has been forced.
+
+Upstream skips were decimal64/decimal128 tests on both targets, plus float128
+on ARM64. Complete logs are available as
+[x64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36331885720/artifacts/10935947404)
+and [ARM64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36331885720/artifacts/10936644425)
+(14-day retention). Autonomous retries stopped at this checkpoint pending the
+user's decision.
+
 ## Running
 
 After the workflow is available on the repository's default branch, select
