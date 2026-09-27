@@ -65,6 +65,9 @@ On x64, `-mlong-double-64` explicitly matches MSVC's 64-bit `long double`,
 including MPFR's `mpfr_set_ld`/`mpfr_get_ld` interface. ARM64 already uses that
 layout. Both compilers exercise those calls. This is a dedicated MSVC-consumer
 build, not a drop-in package for arbitrary MinGW consumers with other flags.
+`__USE_MINGW_ANSI_STDIO=0` selects UCRT formatted I/O instead of MinGW's
+extended-precision printf wrappers. This matters for variadic long-double
+arguments on x64; the upstream formatting suites remain enabled as gates.
 
 The pinned MSYS2 bootstrap, make, m4, and diffutils are **build tools only**. On ARM64
 Windows their x64 processes run under emulation. The library compiler, produced

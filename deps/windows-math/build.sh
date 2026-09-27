@@ -13,8 +13,8 @@ export NM=llvm-nm
 export RANLIB=llvm-ranlib
 export STRIP=llvm-strip
 export DLLTOOL=llvm-dlltool
-export CFLAGS="-O2 -std=gnu11"
-export CXXFLAGS="-O2"
+export CFLAGS="-O2 -std=gnu11 -D__USE_MINGW_ANSI_STDIO=0"
+export CXXFLAGS="-O2 -D__USE_MINGW_ANSI_STDIO=0"
 if [[ "$target" == x86_64-* ]]; then
     # Match MSVC's long double ABI, including MPFR's public get/set_ld API.
     CFLAGS="$CFLAGS -mlong-double-64"

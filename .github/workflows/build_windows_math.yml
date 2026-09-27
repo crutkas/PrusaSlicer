@@ -2,10 +2,6 @@ name: Windows GMP and MPFR
 
 on:
   workflow_dispatch:
-  workflow_call:
-  push:
-    branches: [crutkas-windows-gmp-mpfr-arm64-build]
-    paths: [.github/workflows/build_windows_math.yml, deps/windows-math/**]
 
 permissions:
   contents: read

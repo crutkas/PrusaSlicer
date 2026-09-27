@@ -2,7 +2,6 @@ name: Run clang-format
 
 on:
   push:
-    branches: [master]
   workflow_dispatch:
 
 jobs:

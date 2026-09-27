@@ -163,7 +163,7 @@ try {
             "/I$WorkRoot\package\include", "$PSScriptRoot\smoke.cpp", '/Fe:smoke-msvc.exe',
             '/link', "$WorkRoot\package\lib\libgmp-10.lib", "$WorkRoot\package\lib\libmpfr-6.lib")
         $abiFlags = if ($Architecture -eq 'x64') { @('-mlong-double-64') } else { @() }
-        Invoke-Checked "$llvm\bin\$target-clang.exe" (@('-x', 'c++', '-std=c++17', '-O2',
+        Invoke-Checked "$llvm\bin\$target-clang.exe" (@('-x', 'c++', '-std=c++17', '-O2', '-D__USE_MINGW_ANSI_STDIO=0',
             "-I$WorkRoot\package\include", "$PSScriptRoot\smoke.cpp",
             "-L$WorkRoot\install\lib", '-lmpfr', '-lgmp', '-o', 'smoke-llvm.exe') + $abiFlags)
         Assert-Machine "$WorkRoot\package\bin\smoke-msvc.exe"

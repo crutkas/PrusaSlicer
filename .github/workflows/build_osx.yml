@@ -3,7 +3,7 @@ name: Build osx
 on:
   push:
     branches:
-      - master
+      - '**'
     tags:
       - 'version_*'
   workflow_dispatch:
