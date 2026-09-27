@@ -75,6 +75,8 @@ function Export-ImportLibrary {
     $def = "$WorkRoot\package\lib\$Name.def"
     $definitions | Set-Content $def -Encoding ascii
     Invoke-Checked lib @('/nologo', "/def:$def", "/machine:$Architecture", "/out:$WorkRoot\package\lib\$Name.lib")
+    $exp = "$WorkRoot\package\lib\$Name.exp"
+    if (Test-Path $exp) { Remove-Item $exp }
     $dependents = @(& dumpbin /nologo /dependents $Dll)
     if ($LASTEXITCODE) { throw "Dependency inspection failed for $Dll" }
     $dependents | Set-Content "$WorkRoot\logs\$Name-dependents.txt"
@@ -99,6 +101,10 @@ $target = if ($Architecture -eq 'arm64') { 'aarch64-w64-mingw32' } else { 'x86_6
 $WorkRoot = [IO.Path]::GetFullPath($WorkRoot)
 if (Test-Path $WorkRoot) { throw "Use a fresh work directory: $WorkRoot" }
 if ($WorkRoot -match '\s') { throw 'Autotools work directory must not contain whitespace' }
+$recipeStatus = @(& git -C $PSScriptRoot status --porcelain -- . ../../.github/workflows/build_windows_math.yml)
+if ($LASTEXITCODE -ne 0 -or $recipeStatus.Count) {
+    throw 'Commit the reviewed recipe and workflow before building; provenance requires a clean recipe'
+}
 foreach ($dir in @('downloads', 'src', 'tools', 'logs', 'package\bin', 'package\lib', 'package\include', 'artifacts')) {
     New-Item -ItemType Directory "$WorkRoot\$dir" -Force | Out-Null
 }
@@ -106,7 +112,7 @@ Start-Transcript "$WorkRoot\logs\build-transcript.txt"
 try {
     $spec = Get-Content "$PSScriptRoot\inputs.json" -Raw | ConvertFrom-Json
     $archives = @{}
-    foreach ($name in @('gmp', 'mpfr', 'msys2', 'make', 'm4')) {
+    foreach ($name in @('gmp', 'mpfr', 'msys2', 'make', 'm4', 'diffutils')) {
         $archives[$name] = Get-VerifiedArchive $spec.$name
     }
     $archives.llvm = Get-VerifiedArchive $spec.llvm.$Architecture
@@ -122,7 +128,7 @@ try {
     $env:MSYS2_PATH_TYPE = 'inherit'
     $env:CHERE_INVOKING = '1'
     $env:MSYSTEM = 'MSYS'
-    foreach ($name in @('make', 'm4')) {
+    foreach ($name in @('make', 'm4', 'diffutils')) {
         $archivePath = & "$WorkRoot\tools\msys64\usr\bin\cygpath.exe" -u $archives[$name]
         if ($LASTEXITCODE) { throw "Cannot convert archive path for $name" }
         $msysRoot = & "$WorkRoot\tools\msys64\usr\bin\cygpath.exe" -u "$WorkRoot\tools\msys64"
@@ -131,6 +137,11 @@ try {
     }
     foreach ($name in @('gmp', 'mpfr')) {
         Invoke-Checked tar @('-xf', $archives[$name], '-C', "$WorkRoot\src")
+    }
+    $patches = @(Get-ChildItem "$PSScriptRoot\patches" -Filter '*.patch' | Sort-Object Name)
+    foreach ($patch in $patches) {
+        Invoke-Checked git @('-C', "$WorkRoot\src", 'apply', '--check', $patch.FullName)
+        Invoke-Checked git @('-C', "$WorkRoot\src", 'apply', $patch.FullName)
     }
 
     $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -194,7 +205,10 @@ try {
     $msvcInfo = @(& cl.exe 2>&1) -join "`n"
     $provenance = [ordered]@{
         schema = 1; package = $key; architecture = $Architecture; target = $target
-        recipeCommit = $commit; inputs = $spec; patches = @()
+        recipeCommit = $commit; inputs = $spec
+        patches = @($patches | ForEach-Object {
+            @{ name = $_.Name; sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+        })
         llvm = $compilerInfo; msvc = $msvcInfo
         runnerImage = $env:ImageVersion; windows = [Environment]::OSVersion.VersionString
         nativeAbi = $msvcOutput; runUrl = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"

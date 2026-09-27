@@ -27,6 +27,10 @@ int main()
     static_assert(sizeof(void*) == 8, "Only 64-bit targets are supported");
     static_assert(sizeof(long) == 4, "Windows LLP64 is required");
     static_assert(sizeof(long double) == 8, "MSVC long double ABI is required");
+    static_assert(sizeof(mp_limb_t) == 8 && GMP_NUMB_BITS == 64 && GMP_NAIL_BITS == 0,
+                  "The package must use 64-bit limbs without nails");
+    static_assert(sizeof(mp_bitcnt_t) == 4 && sizeof(mp_size_t) == 4,
+                  "GMP scalar types must retain the Windows LLP64 layout");
     static_assert(sizeof(mp_limb_t) * 8 == GMP_LIMB_BITS, "GMP limb mismatch");
     USHORT process_machine = 0, native_machine = 0;
     CHECK(IsWow64Process2(GetCurrentProcess(), &process_machine, &native_machine));

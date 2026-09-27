@@ -31,7 +31,9 @@ C++ tools for the native host/target, Windows SDK, `vswhere`, Git, and Windows
 .\deps\windows-math\build.ps1 -Architecture arm64 -WorkRoot C:\math-build-arm64
 ```
 
-The work directory must be new and have no spaces. Downloads and unpacked
+Commit reviewed recipe changes before building; a dirty recipe is rejected so
+the recorded commit identifies the packaged scripts. The work directory must
+be new and have no spaces. Downloads and unpacked
 tools are confined to that directory. There is no global package installation.
 Do not reuse a partial or old build directory.
 
@@ -52,7 +54,19 @@ explicit portable-C baseline on both architectures; no performance equivalence
 to optimized shipped binaries is claimed. C++ `gmpxx` is intentionally excluded.
 The C ABI, not the MinGW C++ ABI, is the integration boundary.
 
-The pinned MSYS2 bootstrap, make, and m4 are **build tools only**. On ARM64
+Prior art reviewed: [GMP's Windows DLL/import-library documentation](https://gmplib.org/manual/Notes-for-Particular-Systems),
+the [vcpkg GMP](https://github.com/microsoft/vcpkg/tree/856e200a1264bf2fcbe7a19b0dcd0ed7aa1cf1bd/ports/gmp)
+and [MPFR](https://github.com/microsoft/vcpkg/tree/856e200a1264bf2fcbe7a19b0dcd0ed7aa1cf1bd/ports/mpfr)
+recipes, and [LLVM-MinGW's runtime interoperability notes](https://github.com/mstorsjo/llvm-mingw/blob/0eca5ac93da14a74bc81c249e841356ececc5d95/README.md).
+Those vcpkg recipes remove upstream test traversal; this workflow keeps it.
+No contributor-produced GMP or MPFR binary is an input.
+
+On x64, `-mlong-double-64` explicitly matches MSVC's 64-bit `long double`,
+including MPFR's `mpfr_set_ld`/`mpfr_get_ld` interface. ARM64 already uses that
+layout. Both compilers exercise those calls. This is a dedicated MSVC-consumer
+build, not a drop-in package for arbitrary MinGW consumers with other flags.
+
+The pinned MSYS2 bootstrap, make, m4, and diffutils are **build tools only**. On ARM64
 Windows their x64 processes run under emulation. The library compiler, produced
 DLLs, LLVM-built smoke executable, MSVC compiler, and MSVC-built smoke executable
 are all required to have the target PE machine type; the smoke also checks
@@ -65,7 +79,8 @@ logs preserve upstream-reported skips/unsupported features; a successful exit
 does not mean every optional upstream test exists on Windows. The original
 `smoke.cpp` checks integer, rational, high-precision MPFR arithmetic, version
 data imports, allocation/free APIs, and the exact structure/type layouts seen
-by both compilers. MSVC `lib.exe` constructs genuine COFF import libraries from
+by both compilers, plus MPFR thread-local precision isolation. MSVC `lib.exe`
+constructs genuine COFF import libraries from
 actual DLL exports, classifying DATA exports from PE sections. Dependency
 inspection rejects unexpected DLLs (including MSYS, libgcc, and C++ runtimes).
 
@@ -83,7 +98,7 @@ The procedure is repeatable; **bit-for-bit reproducibility is not established**.
 ## Package layout
 
 Each artifact name includes GMP/MPFR versions, target architecture, LLVM
-version, pinned-input hash, and recipe commit. It contains a binary/source ZIP
+version, MSVC toolset, pinned-input hash, and recipe commit. It contains a binary/source ZIP
 and a SHA256 manifest for the ZIP. Inside the ZIP:
 
 ```text
@@ -98,9 +113,15 @@ provenance.json      exact inputs, compiler/runner identity, native ABI result
 SHA256SUMS           hashes of all other packaged files
 ```
 
-No patches are currently applied. Any future source patch must be reviewed,
-committed alongside this recipe, hashed/recorded in provenance, applied with
-failure on mismatched context, and shipped in the corresponding-source package.
+`patches/libtool-response-files.patch` adapts the
+[MSYS2/LLVM-MinGW response-file fix](https://github.com/msys2/MINGW-packages/blob/95b093e888/mingw-w64-libtool/0012-Prefer-response-files-over-linker-scripts-for-mingw-.patch)
+to the bundled generated `configure`/`ltmain.sh` files. It selects `@file`
+instead of GNU linker scripts, which LLD's PE linker cannot read. It changes
+build machinery only, not arithmetic or public headers. The original complete
+source archives plus the applied patch are shipped. Patches are checked against
+the pinned source context, recorded with SHA256 hashes in provenance, and never
+downloaded dynamically. No Autoconf regeneration or unpinned package update is
+needed.
 
 ## Adoption and licensing
 

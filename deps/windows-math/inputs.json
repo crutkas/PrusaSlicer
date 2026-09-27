@@ -33,5 +33,9 @@
   "m4": {
     "url": "https://repo.msys2.org/msys/x86_64/m4-1.4.19-2-x86_64.pkg.tar.zst",
     "sha256": "4a1d296571afa7b8837fd5e227e16c9cb7e26c0f31f03b364e11c1ae8ee2a913"
+  },
+  "diffutils": {
+    "url": "https://repo.msys2.org/msys/x86_64/diffutils-3.10-1-x86_64.pkg.tar.zst",
+    "sha256": "ed5084a37995377c0288050640363a0daf1c8ace774da26ca84ec305ba51c7ce"
   }
 }
