@@ -37,6 +37,22 @@ and [ARM64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/3633
 (14-day retention). Autonomous retries stopped at this checkpoint pending the
 user's decision.
 
+## Actions runtime checks are not library qualification
+
+The original checkout and diagnostic-upload Actions declared Node 20. In the
+qualification run above, GitHub forced them onto Node 24 and logged a Node 20
+deprecation warning; the upload also logged `DEP0040` (`punycode`) and `DEP0169`
+(`url.parse()`). Checkout, diagnostic upload, and checkout post-cleanup all
+completed successfully. These warnings were separate from the fatal MPFR test
+failure.
+
+Both Actions are now pinned to v7.0.1 commits that explicitly declare Node 24.
+`check_windows_math_actions.yml` exercises checkout, both upload patterns, and
+checkout cleanup on the same Windows runner matrix, without building libraries.
+Its artifacts are explicitly labeled runtime fixtures, not dependency packages.
+A green **Actions runtime only** run does not resolve the blocked qualification
+above; all library, MSVC-consumer, and package gates remain unchanged.
+
 ## Running
 
 After the workflow is available on the repository's default branch, select

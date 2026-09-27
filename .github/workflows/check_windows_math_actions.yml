@@ -1,0 +1,72 @@
+name: Windows math Actions runtime only
+run-name: Actions runtime only - no dependency qualification
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    name: Actions runtime ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: windows-11-arm
+          - arch: x64
+            runner: windows-2025
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, Node 24
+        with:
+          persist-credentials: false
+      - name: Prepare runtime-only fixtures
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $native = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+          if ($native -ne '${{ matrix.arch }}') { throw "Wrong native runner: $native" }
+          $root = "$env:RUNNER_TEMP\windows-math-actions-smoke"
+          New-Item -ItemType Directory "$root\artifacts", "$root\logs" | Out-Null
+          "Actions runtime fixture only; no libraries built. Commit=$env:GITHUB_SHA Architecture=$native" |
+            Set-Content "$root\logs\fixture.txt"
+          Compress-Archive "$root\logs\fixture.txt" "$root\artifacts\fixture.zip"
+          "This checks checkout, artifact uploads, and checkout post-cleanup only. Dependency qualification remains separate." >>
+            $env:GITHUB_STEP_SUMMARY
+      - name: Exercise package-pattern upload with a non-library fixture
+        id: package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1, Node 24
+        with:
+          name: actions-runtime-${{ matrix.arch }}-fixture-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}\windows-math-actions-smoke\artifacts\*
+          if-no-files-found: error
+          retention-days: 7
+      - name: Exercise always-run diagnostic upload
+        id: diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1, Node 24
+        with:
+          name: actions-runtime-${{ matrix.arch }}-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}\windows-math-actions-smoke\logs
+          if-no-files-found: error
+          retention-days: 7
+      - name: Verify both upload results
+        env:
+          PACKAGE_ID: ${{ steps.package.outputs.artifact-id }}
+          PACKAGE_DIGEST: ${{ steps.package.outputs.artifact-digest }}
+          DIAGNOSTICS_ID: ${{ steps.diagnostics.outputs.artifact-id }}
+          DIAGNOSTICS_DIGEST: ${{ steps.diagnostics.outputs.artifact-digest }}
+        run: |
+          if ($env:PACKAGE_ID -notmatch '^[1-9][0-9]*$' -or $env:DIAGNOSTICS_ID -notmatch '^[1-9][0-9]*$') {
+            throw 'An upload did not return an artifact ID'
+          }
+          if ($env:PACKAGE_DIGEST -notmatch '^[a-fA-F0-9]{64}$' -or $env:DIAGNOSTICS_DIGEST -notmatch '^[a-fA-F0-9]{64}$') {
+            throw 'An upload did not return a SHA256 digest'
+          }
