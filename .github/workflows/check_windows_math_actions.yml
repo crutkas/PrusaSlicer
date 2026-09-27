@@ -34,12 +34,12 @@ jobs:
           $native = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
           if ($native -ne '${{ matrix.arch }}') { throw "Wrong native runner: $native" }
           $root = "$env:RUNNER_TEMP\windows-math-actions-smoke"
-          New-Item -ItemType Directory "$root\artifacts", "$root\logs" | Out-Null
+          New-Item -ItemType Directory "$root\artifacts", "$root\logs" -Force | Out-Null
           "Actions runtime fixture only; no libraries built. Commit=$env:GITHUB_SHA Architecture=$native" |
             Set-Content "$root\logs\fixture.txt"
           Compress-Archive "$root\logs\fixture.txt" "$root\artifacts\fixture.zip"
-          "This checks checkout, artifact uploads, and checkout post-cleanup only. Dependency qualification remains separate." >>
-            $env:GITHUB_STEP_SUMMARY
+          "This checks checkout, artifact uploads, and checkout post-cleanup only. Dependency qualification remains separate." |
+            Add-Content $env:GITHUB_STEP_SUMMARY
       - name: Exercise package-pattern upload with a non-library fixture
         id: package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1, Node 24
