@@ -53,6 +53,8 @@ selects `long long` limbs for the 64-bit ABI. Assembly is disabled for an
 explicit portable-C baseline on both architectures; no performance equivalence
 to optimized shipped binaries is claimed. C++ `gmpxx` is intentionally excluded.
 The C ABI, not the MinGW C++ ABI, is the integration boundary.
+The provided `target-gcc`/`target-g++` aliases still invoke the pinned Clang,
+but avoid old Libtool's `cl*` compiler-name heuristic selecting MSVC filenames.
 
 Prior art reviewed: [GMP's Windows DLL/import-library documentation](https://gmplib.org/manual/Notes-for-Particular-Systems),
 the [vcpkg GMP](https://github.com/microsoft/vcpkg/tree/856e200a1264bf2fcbe7a19b0dcd0ed7aa1cf1bd/ports/gmp)
@@ -86,6 +88,12 @@ by both compilers, plus MPFR thread-local precision isolation. MSVC `lib.exe`
 constructs genuine COFF import libraries from
 actual DLL exports, classifying DATA exports from PE sections. Dependency
 inspection rejects unexpected DLLs (including MSYS, libgcc, and C++ runtimes).
+After packaging, the ZIP is extracted into a fresh directory, every manifest
+entry and the file count are checked, and the packaged smoke source is compiled
+again with MSVC against the extracted headers and import libraries. That fresh
+process runs with only the package and Windows system directories on `PATH`;
+the smoke verifies both loaded DLLs are beside its executable. Build-tree DLLs
+cannot satisfy this gate. Its output is retained in `unpacked-native-abi.txt`.
 
 Both DLLs use the UCRT. The MSVC consumer uses `/MD`. Memory returned by GMP
 must be released through the allocator returned by `mp_get_memory_functions`,

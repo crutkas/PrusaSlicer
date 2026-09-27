@@ -35,6 +35,25 @@ function Assert-Machine {
     if ($machine -ne $script:ExpectedMachine) { throw "Wrong PE machine $machine in $File" }
 }
 
+function Invoke-MsvcSmoke {
+    param([string]$PackageRoot, [string]$Source)
+    Push-Location "$PackageRoot\bin"
+    $savedPath = $env:PATH
+    try {
+        Invoke-Checked cl @('/nologo', '/std:c++17', '/EHsc', '/MD', '/W4', '/WX',
+            "/I$PackageRoot\include", $Source, '/Fe:smoke-msvc.exe',
+            '/link', "$PackageRoot\lib\libgmp-10.lib", "$PackageRoot\lib\libmpfr-6.lib") | Out-Host
+        Assert-Machine "$PackageRoot\bin\smoke-msvc.exe"
+        $env:PATH = "$PackageRoot\bin;$env:SystemRoot\System32;$env:SystemRoot"
+        $result = @(& .\smoke-msvc.exe)
+        if ($LASTEXITCODE) { throw 'MSVC native arithmetic/ABI smoke failed' }
+        return $result
+    } finally {
+        $env:PATH = $savedPath
+        Pop-Location
+    }
+}
+
 function Export-ImportLibrary {
     param([string]$Dll, [string]$Name)
     Assert-Machine $Dll
@@ -159,17 +178,12 @@ try {
     $env:PATH = "$WorkRoot\package\bin;$env:PATH"
     Push-Location "$WorkRoot\package\bin"
     try {
-        Invoke-Checked cl @('/nologo', '/std:c++17', '/EHsc', '/MD', '/W4', '/WX',
-            "/I$WorkRoot\package\include", "$PSScriptRoot\smoke.cpp", '/Fe:smoke-msvc.exe',
-            '/link', "$WorkRoot\package\lib\libgmp-10.lib", "$WorkRoot\package\lib\libmpfr-6.lib")
+        $msvcOutput = @(Invoke-MsvcSmoke "$WorkRoot\package" "$PSScriptRoot\smoke.cpp")
         $abiFlags = if ($Architecture -eq 'x64') { @('-mlong-double-64') } else { @() }
         Invoke-Checked "$llvm\bin\$target-clang.exe" (@('-x', 'c++', '-std=c++17', '-O2', '-D__USE_MINGW_ANSI_STDIO=0',
             "-I$WorkRoot\package\include", "$PSScriptRoot\smoke.cpp",
             "-L$WorkRoot\install\lib", '-lmpfr', '-lgmp', '-o', 'smoke-llvm.exe') + $abiFlags)
-        Assert-Machine "$WorkRoot\package\bin\smoke-msvc.exe"
         Assert-Machine "$WorkRoot\package\bin\smoke-llvm.exe"
-        $msvcOutput = @(& .\smoke-msvc.exe)
-        if ($LASTEXITCODE) { throw 'MSVC native arithmetic/ABI smoke failed' }
         $llvmOutput = @(& .\smoke-llvm.exe)
         if ($LASTEXITCODE) { throw 'LLVM native arithmetic/ABI smoke failed' }
         if (($msvcOutput -join "`n") -ne ($llvmOutput -join "`n")) { throw 'Compiler ABI descriptions differ' }
@@ -225,5 +239,25 @@ try {
     $zip = "$WorkRoot\artifacts\$key.zip"
     "$((Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant())  $key.zip" |
         Set-Content "$WorkRoot\artifacts\SHA256SUMS"
+    $unpacked = "$WorkRoot\unpacked"
+    Expand-Archive $zip $unpacked
+    $manifest = @(Get-Content "$unpacked\SHA256SUMS")
+    foreach ($line in $manifest) {
+        if ($line -notmatch '^([a-f0-9]{64})  (.+)$') { throw 'Invalid packaged SHA256 manifest' }
+        $expectedHash = $Matches[1]
+        $file = [IO.Path]::GetFullPath((Join-Path $unpacked $Matches[2]))
+        if (!$file.StartsWith("$unpacked\", [StringComparison]::OrdinalIgnoreCase)) { throw 'Manifest path escapes package' }
+        if ((Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expectedHash) {
+            throw "Unpacked checksum mismatch: $file"
+        }
+    }
+    if (@(Get-ChildItem $unpacked -Recurse -File).Count -ne $manifest.Count + 1) {
+        throw 'Unpacked files do not match the manifest'
+    }
+    $unpackedOutput = @(Invoke-MsvcSmoke $unpacked "$unpacked\source\recipe\smoke.cpp")
+    if (($unpackedOutput -join "`n") -ne ($msvcOutput -join "`n")) {
+        throw 'Clean unpacked package ABI result differs'
+    }
+    $unpackedOutput | Set-Content "$WorkRoot\logs\unpacked-native-abi.txt"
     if ($env:GITHUB_OUTPUT) { "artifact=$key" >> $env:GITHUB_OUTPUT }
 } finally { Stop-Transcript }

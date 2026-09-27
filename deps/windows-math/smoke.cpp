@@ -42,6 +42,23 @@ int main()
 #else
 #error Unsupported architecture
 #endif
+    char executable[MAX_PATH], library[MAX_PATH];
+    DWORD length = GetModuleFileNameA(nullptr, executable, MAX_PATH);
+    CHECK(length > 0 && length < MAX_PATH);
+    char* separator = std::strrchr(executable, '\\');
+    CHECK(separator != nullptr);
+    separator[1] = '\0';
+    const char* names[] = {"libgmp-10.dll", "libmpfr-6.dll"};
+    for (const char* name : names) {
+        HMODULE module = GetModuleHandleA(name);
+        CHECK(module != nullptr);
+        length = GetModuleFileNameA(module, library, MAX_PATH);
+        CHECK(length > 0 && length < MAX_PATH);
+        separator = std::strrchr(library, '\\');
+        CHECK(separator != nullptr);
+        separator[1] = '\0';
+        CHECK(_stricmp(executable, library) == 0);
+    }
     CHECK(std::strcmp(gmp_version, "6.2.1") == 0);
     CHECK(std::strcmp(mpfr_get_version(), "4.2.1") == 0);
     CHECK(mp_bits_per_limb == GMP_LIMB_BITS);
