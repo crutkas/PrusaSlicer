@@ -2,6 +2,10 @@ name: Windows GMP and MPFR
 
 on:
   workflow_dispatch:
+  # Temporary registration trigger for branch-only fork verification.
+  push:
+    branches: [crutkas-windows-gmp-mpfr-arm64-build]
+    paths: [.github/workflows/build_windows_math.yml, deps/windows-math/**]
 
 permissions:
   contents: read
