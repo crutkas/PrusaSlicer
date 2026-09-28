@@ -1,4 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0A00
+#endif
+#if _WIN32_WINNT < 0x0A00
+#error The native architecture check requires Windows 10 or newer
+#endif
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>

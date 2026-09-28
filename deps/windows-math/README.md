@@ -6,12 +6,13 @@ GMP 6.2.1 and MPFR 4.2.1 DLLs, MSVC import libraries, and headers on native
 Windows ARM64 and x64 runners. Existing committed Windows binaries and all
 application/dependency consumption paths are unchanged.
 
-## Qualification status: consumer gate blocked
+## Qualification status: LLVM consumer gate blocked
 
-The [native qualification run](https://github.com/crutkas/PrusaSlicer/actions/runs/36350929658)
-at recipe commit `68390ca935` passed both libraries' upstream test gates
-and the no-build-warnings gate on both architectures, but failed MSVC consumer
-compilation on two header warnings. **No verified
+The [native qualification run](https://github.com/crutkas/PrusaSlicer/actions/runs/36361803457)
+at recipe commit `74ee8e1882` passed both libraries' upstream test gates,
+the no-build-warnings gate, and native MSVC consumer tests on both architectures,
+but failed LLVM consumer compilation because its default Windows API target
+did not declare `IsWow64Process2`. **No verified
 binary/source package was uploaded. Do not adopt these outputs yet.**
 
 | Gate | x64 | ARM64 |
@@ -19,7 +20,8 @@ binary/source package was uploaded. Do not adopt these outputs yet.**
 | GMP upstream tests | 175 passed, no skips | 175 passed, no skips |
 | MPFR upstream tests | 196 passed, 2 skipped | 195 passed, 3 skipped |
 | MSVC import generation and DLL audit | Passed | Passed |
-| MSVC consumer arithmetic/ABI/TLS | Compilation blocked | Compilation blocked |
+| MSVC consumer arithmetic/ABI/TLS | Passed | Passed |
+| LLVM consumer / cross-compiler ABI comparison | Compilation blocked | Compilation blocked |
 | Clean unpacked ZIP consumer | Not reached | Not reached |
 | Full PrusaSlicer integration | Not attempted | Not attempted |
 
@@ -35,15 +37,18 @@ The recipe now patches those omissions and adds printf-family regression
 coverage; `tsprintf.exe` passed on both architectures. The assertion
 has not been disabled and no configure result has been forced.
 
-The current header fix makes GMP's documented low-`unsigned long` extraction
+The header fix makes GMP's documented low-`unsigned long` extraction
 explicit and expresses limb negation as unsigned subtraction rather than
 unary minus. This addresses MSVC C4244/C4146 without lowering `/W4 /WX`;
-the consumer smoke checks both operations. Another complete run is required.
+the consumer smoke checks both operations. Those checks now pass. The smoke
+now explicitly targets Windows 10 or newer for `IsWow64Process2` in both SDKs,
+without falling back to an architecture check that allows emulation.
+Another complete run is required.
 
 Upstream skips were decimal64/decimal128 tests on both targets, plus float128
 on ARM64. Complete logs are available as
-[x64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36350929658/artifacts/10942663000)
-and [ARM64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36350929658/artifacts/10942349641)
+[x64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36361803457/artifacts/10945464694)
+and [ARM64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36361803457/artifacts/10946559011)
 (14-day retention). These results are the last completed dependency
 qualification; further fixes must pass the entire workflow before adoption.
 
