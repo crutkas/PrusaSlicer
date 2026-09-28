@@ -6,15 +6,25 @@ GMP 6.2.1 and MPFR 4.2.1 DLLs, MSVC import libraries, and headers on native
 Windows ARM64 and x64 runners. Existing committed Windows binaries and all
 application/dependency consumption paths are unchanged.
 
-## Qualification status: baseline passed; explicit ARM image pending
+## Qualification status: passed on both native architectures
 
-The [native qualification run](https://github.com/crutkas/PrusaSlicer/actions/runs/36373254250)
-at recipe commit `c44fe89b14` passed every dependency, native consumer and
+The [native qualification run](https://github.com/crutkas/PrusaSlicer/actions/runs/36378098643)
+at recipe commit `4eff56c10d5eea198bdc72bed7f6c5dbf1b6faff` passed every dependency, native consumer and
 packaging gate on both architectures and uploaded verified binary/source
-packages. That run used `windows-11-arm` with VS 2022 on ARM64 and
-`windows-2025` with VS 2026 on x64. The workflow now explicitly selects
-`windows-11-vs2026-arm`; qualification of that final ARM image selection is
-pending and is not established by the earlier green run.
+packages. ARM64 used the explicit `windows-11-vs2026-arm` image
+`20260920.164.1`; x64 used `windows-2025` image `20260922.246.2`.
+Both selected VS `18.10.12210.168` and MSVC `14.51.36231`.
+The completed jobs have no check annotations, and complete logs have no
+build/compiler or Node deprecation warnings.
+
+Download the matched binary/source packages:
+[ARM64](https://github.com/crutkas/PrusaSlicer/actions/runs/36378098643/artifacts/10952626981)
+and [x64](https://github.com/crutkas/PrusaSlicer/actions/runs/36378098643/artifacts/10952088465).
+Both downloaded ZIP hashes, all 58 manifest entries, original source archive
+checksums and applied-patch provenance were independently checked after upload.
+Packages are retained for 30 days; preserve them and their source together.
+The qualification identifies the exact recipe commit above; subsequent
+documentation-only updates do not change the tested scripts or workflow.
 
 | Gate | x64 | ARM64 |
 | --- | --- | --- |
@@ -30,7 +40,7 @@ The previous failure was `tsprintf.exe`, which hit GMP's
 `printf/repl-vsnprintf.c:389` assertion `len < total_width`. GMP's configure log
 shows its `vsnprintf` conformance probe failing on `"%nhello world"` under the
 selected UCRT formatted-I/O configuration, selecting the replacement routine.
-The failing assertion is a correctness blocker, not an expected test skip.
+The failing assertion was a correctness blocker, not an expected test skip.
 The `%n`/CRT behavior legitimately selects GMP's replacement routine. That
 routine omitted hexadecimal floating conversions (`%a`/`%A`) from its output
 size calculation and argument traversal before calling `vsprintf`.
@@ -44,12 +54,12 @@ unary minus. This addresses MSVC C4244/C4146 without lowering `/W4 /WX`;
 the consumer smoke checks both operations. Those checks now pass. The smoke
 now explicitly targets Windows 10 or newer for `IsWow64Process2` in both SDKs,
 without falling back to an architecture check that allows emulation.
-These checks passed in the baseline run.
+These checks passed in the final qualification run.
 
 Upstream skips were decimal64/decimal128 tests on both targets, plus float128
 on ARM64. Complete logs are available as
-[x64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36373254250/artifacts/10949903519)
-and [ARM64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36373254250/artifacts/10950194971)
+[x64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36378098643/artifacts/10951799755)
+and [ARM64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36378098643/artifacts/10953171044)
 (14-day retention). These results are the last completed dependency
 qualification; further fixes must pass the entire workflow before adoption.
 
@@ -66,15 +76,17 @@ Both Actions are now pinned to v7.0.1 commits that explicitly declare Node 24.
 `check_windows_math_actions.yml` exercises checkout, both upload patterns, and
 checkout cleanup on the same Windows runner matrix, without building libraries.
 Its artifacts are explicitly labeled runtime fixtures, not dependency packages.
-A green **Actions runtime only** run does not resolve the blocked qualification
-above; all library, MSVC-consumer, and package gates remain unchanged.
+A green **Actions runtime only** run is not dependency qualification;
+all library, MSVC-consumer, and package gates must also pass.
 
 [Runtime-only run 36348481031](https://github.com/crutkas/PrusaSlicer/actions/runs/36348481031)
 passed checkout, both actual fixture uploads, upload ID/SHA256 validation, and
 post-checkout cleanup on ARM64 and x64. Its complete logs contain no Actions
 warning/error annotations or Node deprecation warnings. The ARM64 runner emits
-an informational notice about its Visual Studio 2026 image migration; this is
-not a Node warning. This run produced fixtures only, not qualified libraries.
+an informational notice about its Visual Studio 2026 image migration in that
+historical run. The final dependency run uses the explicit VS 2026 ARM image
+and has no migration annotation. The runtime-only run produced fixtures only,
+not qualified libraries.
 
 ## Running
 
