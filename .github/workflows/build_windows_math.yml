@@ -14,7 +14,7 @@ jobs:
       matrix:
         include:
           - arch: arm64
-            runner: windows-11-arm
+            runner: windows-11-vs2026-arm
           - arch: x64
             runner: windows-2025
     runs-on: ${{ matrix.runner }}
@@ -28,6 +28,8 @@ jobs:
           persist-credentials: false
       - name: Build, test, and package matched dependencies
         id: build
+        env:
+          WINDOWS_MATH_RUNNER_LABEL: ${{ matrix.runner }}
         run: |
           .\deps\windows-math\build.ps1 -Architecture '${{ matrix.arch }}' -WorkRoot "$env:RUNNER_TEMP\windows-math"
       - name: Upload verified package and corresponding source

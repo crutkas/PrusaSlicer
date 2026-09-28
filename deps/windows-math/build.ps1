@@ -164,8 +164,15 @@ try {
     }
 
     $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-    $vs = & $vswhere -latest -products '*' -property installationPath
+    $vsArgs = @('-latest', '-products', '*')
+    if ($env:WINDOWS_MATH_RUNNER_LABEL -eq 'windows-11-vs2026-arm') {
+        $vsArgs += @('-version', '[18.0,19.0)')
+    }
+    $vs = & $vswhere @vsArgs -property installationPath
     if ($LASTEXITCODE -ne 0 -or !$vs) { throw 'Visual Studio is required' }
+    $vsVersion = & $vswhere @vsArgs -property installationVersion
+    if ($LASTEXITCODE -ne 0 -or !$vsVersion) { throw 'Cannot identify selected Visual Studio version' }
+    Write-Host "Selected Visual Studio $vsVersion at $vs"
     Import-Module "$vs\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
     Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments "-arch=$Architecture -host_arch=$Architecture"
     Assert-Machine (Get-Command cl.exe).Source
@@ -233,7 +240,10 @@ try {
             @{ name = $_.Name; sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
         })
         llvm = $compilerInfo; msvc = $msvcInfo
-        runnerImage = $env:ImageVersion; windows = [Environment]::OSVersion.VersionString
+        runnerLabel = $env:WINDOWS_MATH_RUNNER_LABEL
+        runnerImageName = $env:ImageOS; runnerImage = $env:ImageVersion
+        visualStudio = @{ version = $vsVersion; path = $vs; toolset = $msvcVersion }
+        windows = [Environment]::OSVersion.VersionString
         nativeAbi = $msvcOutput; runUrl = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
         limitations = 'Portable C, release DLLs, C ABI only; not application parity or bit-for-bit reproducibility.'
     }

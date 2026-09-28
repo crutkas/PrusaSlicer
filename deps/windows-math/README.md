@@ -6,14 +6,15 @@ GMP 6.2.1 and MPFR 4.2.1 DLLs, MSVC import libraries, and headers on native
 Windows ARM64 and x64 runners. Existing committed Windows binaries and all
 application/dependency consumption paths are unchanged.
 
-## Qualification status: LLVM consumer gate blocked
+## Qualification status: baseline passed; explicit ARM image pending
 
-The [native qualification run](https://github.com/crutkas/PrusaSlicer/actions/runs/36361803457)
-at recipe commit `74ee8e1882` passed both libraries' upstream test gates,
-the no-build-warnings gate, and native MSVC consumer tests on both architectures,
-but failed LLVM consumer compilation because its default Windows API target
-did not declare `IsWow64Process2`. **No verified
-binary/source package was uploaded. Do not adopt these outputs yet.**
+The [native qualification run](https://github.com/crutkas/PrusaSlicer/actions/runs/36373254250)
+at recipe commit `c44fe89b14` passed every dependency, native consumer and
+packaging gate on both architectures and uploaded verified binary/source
+packages. That run used `windows-11-arm` with VS 2022 on ARM64 and
+`windows-2025` with VS 2026 on x64. The workflow now explicitly selects
+`windows-11-vs2026-arm`; qualification of that final ARM image selection is
+pending and is not established by the earlier green run.
 
 | Gate | x64 | ARM64 |
 | --- | --- | --- |
@@ -21,8 +22,8 @@ binary/source package was uploaded. Do not adopt these outputs yet.**
 | MPFR upstream tests | 196 passed, 2 skipped | 195 passed, 3 skipped |
 | MSVC import generation and DLL audit | Passed | Passed |
 | MSVC consumer arithmetic/ABI/TLS | Passed | Passed |
-| LLVM consumer / cross-compiler ABI comparison | Compilation blocked | Compilation blocked |
-| Clean unpacked ZIP consumer | Not reached | Not reached |
+| LLVM consumer / cross-compiler ABI comparison | Passed | Passed |
+| Clean unpacked ZIP consumer | Passed | Passed |
 | Full PrusaSlicer integration | Not attempted | Not attempted |
 
 The previous failure was `tsprintf.exe`, which hit GMP's
@@ -43,12 +44,12 @@ unary minus. This addresses MSVC C4244/C4146 without lowering `/W4 /WX`;
 the consumer smoke checks both operations. Those checks now pass. The smoke
 now explicitly targets Windows 10 or newer for `IsWow64Process2` in both SDKs,
 without falling back to an architecture check that allows emulation.
-Another complete run is required.
+These checks passed in the baseline run.
 
 Upstream skips were decimal64/decimal128 tests on both targets, plus float128
 on ARM64. Complete logs are available as
-[x64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36361803457/artifacts/10945464694)
-and [ARM64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36361803457/artifacts/10946559011)
+[x64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36373254250/artifacts/10949903519)
+and [ARM64 diagnostics](https://github.com/crutkas/PrusaSlicer/actions/runs/36373254250/artifacts/10950194971)
 (14-day retention). These results are the last completed dependency
 qualification; further fixes must pass the entire workflow before adoption.
 
@@ -180,8 +181,15 @@ or custom-allocator boundaries. This gate is not a guarantee for every CRT
 setting, varargs/stdio boundary, consumer compiler, or full CGAL/slicer workload.
 
 GitHub runner images and their MSVC/SDK servicing versions can change. Runner
-labels are explicit (`windows-11-arm`, `windows-2025`), and exact compiler,
+labels are explicit (`windows-11-vs2026-arm`, `windows-2025`), and exact compiler,
 runner, source, and recipe identities are recorded in `provenance.json`.
+The ARM label deliberately adopts the supported VS 2026 image described in
+[the migration announcement](https://github.com/actions/runner-images/issues/14602),
+rather than waiting for `windows-11-arm` to change underneath a run. On that
+label, `vswhere` is constrained to VS 18.x and the selected installation
+version, native compiler, toolset and image version are recorded. The x64
+label and selection remain unchanged. A runner label is not an immutable
+toolchain pin; hosted image servicing still requires requalification.
 The procedure is repeatable; **bit-for-bit reproducibility is not established**.
 
 ## Package layout

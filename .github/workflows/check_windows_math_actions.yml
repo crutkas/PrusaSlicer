@@ -16,7 +16,7 @@ jobs:
       matrix:
         include:
           - arch: arm64
-            runner: windows-11-arm
+            runner: windows-11-vs2026-arm
           - arch: x64
             runner: windows-2025
     runs-on: ${{ matrix.runner }}
