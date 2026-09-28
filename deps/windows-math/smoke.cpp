@@ -79,12 +79,18 @@ int main()
     CHECK(mpz_set_str(expected, "1267650600228229401496703205376", 10) == 0);
     CHECK(mpz_cmp(value, expected) == 0);
     mpz_add_ui(value, value, 123);
+    CHECK(mpz_get_ui(value) == 123);
     CHECK(mpz_fdiv_ui(value, 1000) == 499);
     char* text = mpz_get_str(nullptr, 10, value);
     CHECK(std::strcmp(text, "1267650600228229401496703205499") == 0);
     void (*gmp_free)(void*, size_t) = nullptr;
     mp_get_memory_functions(nullptr, nullptr, &gmp_free);
     gmp_free(text, std::strlen(text) + 1);
+
+    mp_limb_t limbs[] = {0, 1};
+    mp_limb_t negated[2] = {};
+    CHECK(mpn_neg(negated, limbs, 2) == 1);
+    CHECK(negated[0] == 0 && negated[1] == GMP_NUMB_MAX);
 
     mpq_t rational, increment;
     mpq_inits(rational, increment, nullptr);

@@ -18,6 +18,20 @@ diff --git a/gmp-6.2.1/gmp-h.in b/gmp-6.2.1/gmp-h.in
  /* DEC C (eg. version 5.9) supports "static __inline foo()", even in -std1
     strict ANSI mode.  Inlining is done even when not optimizing (ie. -O0
     mode, which is the default), but an unnecessary local copy of foo is
+@@ -1783,5 +1793,5 @@
+ #if GMP_NAIL_BITS == 0 || defined (_LONG_LONG_LIMB)
+   /* limb==long and no nails, or limb==longlong, one limb is enough */
+-  return (__gmp_n != 0 ? __gmp_l : 0);
++  return (__gmp_n != 0 ? (unsigned long) __gmp_l : 0);
+ #else
+   /* limb==long and nails, need two limbs when available */
+@@ -2228,5 +2238,5 @@
+     }
+ 
+-  *__gmp_rp = (- *__gmp_up) & GMP_NUMB_MASK;
++  *__gmp_rp = ((mp_limb_t) 0 - *__gmp_up) & GMP_NUMB_MASK;
+ 
+   if (--__gmp_n) /* Higher limbs get complemented. */
 diff --git a/gmp-6.2.1/gmp-impl.h b/gmp-6.2.1/gmp-impl.h
 --- a/gmp-6.2.1/gmp-impl.h
 +++ b/gmp-6.2.1/gmp-impl.h
